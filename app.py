@@ -17,7 +17,10 @@ The app will fetch ETA from supported carrier websites (starting with ONE).
 """)
 
 uploaded_file = st.file_uploader("Upload Excel file", type=[".xlsx"])
+
+# Supported carriers in this version
 supported_carriers = ["ONE"]
+
 results = []
 
 async def track_one_bl(master_bl):
@@ -48,9 +51,12 @@ def deduplicate_columns(columns):
     return new_cols
 
 if uploaded_file:
-    df = pd.read_excel(uploaded_file, header=0)
+    df = pd.read_excel(uploaded_file, header=1)
+
+    # Ensure unique column names
     df.columns = deduplicate_columns(df.columns)
 
+    # Try to rename columns dynamically based on partial name match
     rename_map = {}
     for col in df.columns:
         col_str = str(col).strip()
@@ -62,8 +68,8 @@ if uploaded_file:
             rename_map[col] = "SCI"
 
     df = df.rename(columns=rename_map)
-    required_cols = ["SCI", "CARRIER", "Master BL"]
 
+    required_cols = ["SCI", "CARRIER", "Master BL"]
     if not all(col in df.columns for col in required_cols):
         st.error(f"Missing required columns: {', '.join(set(required_cols) - set(df.columns))}")
     else:
@@ -81,6 +87,7 @@ if uploaded_file:
 
                     if carrier == "ONE":
                         raw_info = loop.run_until_complete(track_one_bl(mbl))
+                        # Simple ETA extract
                         eta = "N/A"
                         for line in raw_info.splitlines():
                             if "ETA" in line.upper():
@@ -106,6 +113,7 @@ if uploaded_file:
                 st.success("Tracking complete!")
                 st.write(result_df)
 
+                # Offer Excel download
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
                     result_df.to_excel(tmp.name, index=False)
                     st.download_button("📥 Download Result Excel", tmp.name, file_name="ETA_Results.xlsx")
